@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: podkiller-svc-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pod-deleter
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: pod-deleter-pod-killer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pod-deleter
+subjects:
+- kind: ServiceAccount
+  name: podkiller-svc-account
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podkiller
+  labels:
+    app: podkiller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: podkiller
+  template:
+    metadata:
+      labels:
+        app: podkiller
+    spec:
+      serviceAccountName: podkiller-svc-account
+      containers:
+      - name: podkiller
+        image: jlevesy/podkiller:latest
+        imagePullPolicy: Always
+        command:
+          - "/podkiller"
+          - "--frequency=30s"
+          - "--label-selector=app=foo"
